@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Movies</string>
+
+    <string name="background_task">Loading data...</string>
+
+    <string name="api_key">43b39a0c8a0af19a2394febf0953c8bb</string>
 </resources>
