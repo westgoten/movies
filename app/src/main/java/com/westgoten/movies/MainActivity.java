@@ -1,10 +1,15 @@
 package com.westgoten.movies;
 
+import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProviders;
+import com.squareup.picasso.MemoryPolicy;
+import com.squareup.picasso.Picasso;
+import com.westgoten.movies.fragments.MovieListFragment;
 import retrofit2.Call;
 import retrofit2.Response;
 import retrofit2.Retrofit;
@@ -13,7 +18,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
-    private Movie[] movieList;
+    private GetMovies getMoviesInstance;
+    private MainActivityViewModel viewModel;
 
     private static final String LANGUAGE = "pt-BR";
     private static final int PAGE = 1;
@@ -25,7 +31,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        new GetMovies().execute();
+        viewModel = ViewModelProviders.of(this).get(MainActivityViewModel.class);
+
+        if (savedInstanceState == null) {
+            getMoviesInstance = (GetMovies) new GetMovies().execute();
+        } else {
+
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (isFinishing() && getMoviesInstance != null)
+          getMoviesInstance.cancel(true);
+
+        super.onDestroy();
     }
 
     private class GetMovies extends AsyncTask<Void, Void, Void> {
@@ -58,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("ConfigurationResponse", configurationResponse.message());
                 }
             } catch (IOException e) {
-                Log.e("IOException", e.getMessage());
+                Log.e("FetchingConfiguration", e.getMessage());
             }
 
             Call<PopularMovies> popularMoviesCall = theMovieDbService.getPopularMovies(getString(R.string.api_key),
@@ -67,9 +87,9 @@ public class MainActivity extends AppCompatActivity {
                 Response<PopularMovies> popularMoviesResponse = popularMoviesCall.execute();
                 if (popularMoviesResponse.isSuccessful()) {
                     PopularMovies popularMovies = popularMoviesResponse.body();
-                    movieList = popularMovies.getResults();
+                    viewModel.setMovieList(popularMovies.getResults());
                     if (imagesBaseUrl != null) {
-                        for (Movie movie : movieList) {
+                        for (Movie movie : viewModel.getMovieList()) {
                             movie.setPoster_path(imagesBaseUrl + movie.getPoster_path());
                         }
                     }
@@ -77,7 +97,21 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("PopularMoviesResponse", popularMoviesResponse.message());
                 }
             } catch (IOException e) {
-                Log.e("IOException", e.getMessage());
+                Log.e("FetchingPopularMovies", e.getMessage());
+            }
+
+            try {
+                for (Movie movie : viewModel.getMovieList()) {
+                    Bitmap poster = Picasso.get().load(movie.getPoster_path())
+                            .memoryPolicy(MemoryPolicy.NO_CACHE)
+                            .get();
+
+                    movie.setPoster(poster);
+                    if (isCancelled())
+                        return null;
+                }
+            } catch (IOException e) {
+                Log.e("FetchingBitmap", e.getMessage());
             }
 
             return null;
@@ -87,11 +121,11 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
             // TO DO: Instantiate RecyclerView adapter
-            for (Movie movie : movieList) {
-                Log.d("Title", movie.getTitle());
-                Log.d("Overview", movie.getOverview());
-                Log.d("PosterPath", movie.getPoster_path());
-            }
+
+            MovieListFragment movieListFragment = new MovieListFragment();
+            getSupportFragmentManager().beginTransaction()
+                    .add(R.id.fragment_container, movieListFragment)
+                    .commit();
         }
     }
 }
