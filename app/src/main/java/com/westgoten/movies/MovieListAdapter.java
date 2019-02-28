@@ -1,9 +1,11 @@
 package com.westgoten.movies;
 
+import android.app.Activity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
@@ -38,10 +40,12 @@ public class MovieListAdapter extends RecyclerView.Adapter<MovieListAdapter.Movi
     public void onBindViewHolder(@NonNull MovieListViewHolder holder, final int position) {
         Movie movie = dataset[position];
 
-        ImageView poster = (ImageView) holder.cardView.getChildAt(0);
+        LinearLayout linearLayout = (LinearLayout) holder.cardView.getChildAt(0);
+
+        ImageView poster = (ImageView) linearLayout.getChildAt(0);
         poster.setImageBitmap(movie.getPoster());
 
-        TextView title = (TextView) holder.cardView.getChildAt(1);
+        TextView title = (TextView) linearLayout.getChildAt(1);
         title.setText(movie.getTitle());
 
         holder.cardView.setOnClickListener(new View.OnClickListener() {

@@ -3,5 +3,7 @@
 
     <string name="background_task">Fetching data...</string>
 
+    <string name="no_description">Não há descrição disponível.</string>
+
     <string name="api_key">43b39a0c8a0af19a2394febf0953c8bb</string>
 </resources>

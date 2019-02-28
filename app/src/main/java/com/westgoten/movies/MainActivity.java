@@ -4,11 +4,14 @@ import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Toast;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.ViewModelProviders;
+import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.*;
 import com.squareup.picasso.MemoryPolicy;
 import com.squareup.picasso.Picasso;
+import com.westgoten.movies.fragments.MovieDetailsFragment;
 import com.westgoten.movies.fragments.MovieListFragment;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -20,6 +23,8 @@ import java.io.IOException;
 public class MainActivity extends AppCompatActivity {
     private GetMovies getMoviesInstance;
     private MainActivityViewModel viewModel;
+    private FragmentManager fragmentManager;
+    private FrameLayout frameLayout;
 
     private static final String LANGUAGE = "pt-BR";
     private static final int PAGE = 1;
@@ -31,13 +36,59 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        frameLayout = findViewById(R.id.fragment_container);
+        ProgressBar progressBar = (ProgressBar) getLayoutInflater().inflate(R.layout.progress_bar, frameLayout, false);
+
+        fragmentManager = getSupportFragmentManager();
         viewModel = ViewModelProviders.of(this).get(MainActivityViewModel.class);
 
+        viewModel.getSelectedMovie().observe(this, new Observer<Movie>() {
+            @Override
+            public void onChanged(Movie movie) {
+                if(!viewModel.isActivatedByConfigChanges()) {
+                    MovieDetailsFragment movieDetailsFragment = new MovieDetailsFragment();
+                    fragmentManager.beginTransaction()
+                            .replace(R.id.fragment_container, movieDetailsFragment)
+                            .addToBackStack(MovieDetailsFragment.FRAGMENT_NAME)
+                            .commit();
+                } else {
+                    viewModel.setActivatedByConfigChanges(false);
+                }
+            }
+        });
+
+        viewModel.getIsGetMoviesFinished().observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean aBoolean) {
+                if (aBoolean) {
+                    frameLayout.removeViewAt(0);
+                    MovieListFragment movieListFragment = new MovieListFragment();
+                    fragmentManager.beginTransaction()
+                            .add(R.id.fragment_container, movieListFragment)
+                            .commit();
+                    viewModel.setIsGetMoviesFinished(false);
+                    viewModel.setActivatedObserver(true);
+                }
+            }
+        });
+
         if (savedInstanceState == null) {
+            frameLayout.addView(progressBar);
             getMoviesInstance = (GetMovies) new GetMovies().execute();
         } else {
-
+            if (!viewModel.getIsGetMoviesFinished().getValue() && !viewModel.isActivatedObserver())
+                frameLayout.addView(progressBar);
         }
+    }
+
+    @Override
+    protected void onStop() {
+        if (isChangingConfigurations())
+            viewModel.setActivatedByConfigChanges(true);
+        else
+            viewModel.setActivatedByConfigChanges(false);
+
+        super.onStop();
     }
 
     @Override
@@ -49,10 +100,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private class GetMovies extends AsyncTask<Void, Void, Void> {
+
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            Toast.makeText(getApplicationContext(), getString(R.string.background_task), Toast.LENGTH_LONG).show();
+            viewModel.setIsGetMoviesFinished(false);
         }
 
         @Override
@@ -72,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
                     Configuration configuration = configurationResponse.body();
                     ImagesMetaData imagesMetaData = configuration.getImages();
                     String[] posterSizes = imagesMetaData.getPoster_sizes();
-                    imagesBaseUrl = imagesMetaData.getSecure_base_url() + posterSizes[posterSizes.length-2];
+                    imagesBaseUrl = imagesMetaData.getSecure_base_url() + posterSizes[posterSizes.length-3];
 
                 } else {
                     Log.e("ConfigurationResponse", configurationResponse.message());
@@ -91,6 +143,7 @@ public class MainActivity extends AppCompatActivity {
                     if (imagesBaseUrl != null) {
                         for (Movie movie : viewModel.getMovieList()) {
                             movie.setPoster_path(imagesBaseUrl + movie.getPoster_path());
+                            Log.d("PosterPath", movie.getPoster_path());
                         }
                     }
                 } else {
@@ -120,12 +173,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
-            // TO DO: Instantiate RecyclerView adapter
-
-            MovieListFragment movieListFragment = new MovieListFragment();
-            getSupportFragmentManager().beginTransaction()
-                    .add(R.id.fragment_container, movieListFragment)
-                    .commit();
+            viewModel.setIsGetMoviesFinished(true);
         }
     }
+
+
 }
