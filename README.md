@@ -1,5 +1,5 @@
 # Movies
-*An Android app that displays information about the most popular movies according to The Movie DB.*
+*An Android app that displays information about the most popular movies according to [The Movie DB](https://www.themoviedb.org/).*
 
 It updates daily.
 
